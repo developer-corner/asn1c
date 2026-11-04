@@ -1,4 +1,8 @@
-0.9.??:
+0.9.30:
+    FEATURES:
+      * Added JSON serialization of the parsed ASN.1 tree (-J, optionally with
+        -F) and JSON de-serialization: input files named *.json are read as
+        such JSON instead of ASN.1 source (libasn1print/asn1json*.c).
     FIXES IN COMPILER-GENERATED OUTPUT:
       * Fix open type decoder NULL dereference and out-of-bounds read when an
         information object set leaves the open type's class field unspecified

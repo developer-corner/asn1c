@@ -20,9 +20,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="asn1print.c" />
+    <ClCompile Include="asn1json.c" />
+    <ClCompile Include="asn1jsonin.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asn1print.h" />
+    <ClInclude Include="asn1json.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

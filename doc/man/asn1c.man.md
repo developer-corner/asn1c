@@ -8,7 +8,7 @@ asn1c -- the ASN.1 Compiler
 
 # SYNOPSIS
 
-asn1c [**-E** [**-F**] | **-P** | **-R**] \
+asn1c [**-E** [**-F**] | **-J** [**-F**] | **-P** | **-R**] \
       [**-S***dir*] [**-X**] \
       [**-W***debug-*...] [**-f***option*] [**-gen-***option*] 
       [**-pdu**={**all**|**auto**|*Type*}] \
@@ -20,6 +20,11 @@ asn1c [**-E** [**-F**] | **-P** | **-R**] \
 asn1c compiles ASN.1 specifications into a set of
 target language (C/C++) encoders and decoders for BER, DER, PER, XER, OER
 and other encoding rules.
+
+The input files are normally ASN.1 specifications. Input files whose name
+ends in `.json` (in any letter case) are instead read as the JSON
+representation of a parsed ASN.1 specification, as produced by the **-J**
+option. Both kinds of files may be given together.
 
 # OPTIONS
 
@@ -33,6 +38,14 @@ and other encoding rules.
     instructs the compiler to stop after the ASN.1 syntax
     tree fixing stage and dump the reconstructed ASN.1 specification
     to the standard output.
+
+-J
+:   Run the parsing stage only (like **-E**), but print the parsed ASN.1
+    syntax tree as JSON to the standard output instead of ASN.1 text.
+    Together with **-F** the tree is fixed first, as with **-E -F**.
+    The output can be read back by giving the file, named with a `.json`
+    extension, as an input file. Cannot be combined with **-X** or
+    **-print-**... options.
 
 -P
 :   Dump the compiled output to the standard output instead of creating the
@@ -182,6 +195,23 @@ CANONICAL-XER  xer_encode         *-XER         xer_decode()
 
 *) Asterisk means both BASIC and CANONICAL variants.
 
+
+# JSON INPUT AND OUTPUT
+
+The **-J** option serializes the parsed ASN.1 tree as a JSON document with
+a `generator` string and a `modules` array. Each module lists its name, OID,
+tagging mode, imports, exports and definitions; each definition carries its
+type, tags, constraints, values and nested members. Reading such a document
+(any input file named `*.json`) rebuilds the same tree, so that **-E**, **-F**
+and the compiler behave as if the original ASN.1 file had been given.
+
+    asn1c -J spec.asn1 > spec.json       # ASN.1 to JSON
+    asn1c -E spec.json                   # JSON back to ASN.1 text
+    asn1c -D out/ spec.json              # compile the JSON directly
+    asn1c -E base.asn1 extra.json        # mix ASN.1 and JSON inputs
+
+Malformed JSON is reported on the standard error and asn1c exits with
+status 65. See the file `ASN1_JSON.md` for a description of the format.
 
 # SEE ALSO
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2003-2017 Lev Walkin <vlm@lionet.info> and contributors.
+ * Copyright (c) 2026 contributors.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,11 +32,14 @@
 #include "asn1_common.h"
 
 #undef COPYRIGHT
-#define COPYRIGHT "Copyright (c) 2003-2017 Lev Walkin <vlm@lionet.info> and contributors.\n"
+#define COPYRIGHT "Copyright (c) 2003-2017, 2026 Lev Walkin <vlm@lionet.info> and contributors\n" \
+                  "  (MS Visual C 2026 native compiler support for X86-64 and ARM64 aka AArch64)\n" \
+                  "  (with JSON serializer/de-serializer support, Nov. 2026).\n\n"
 
 #include <asn1parser.h>   /* Parse the ASN.1 file and build a tree */
 #include <asn1fix.h>      /* Fix the ASN.1 tree */
 #include <asn1print.h>    /* Print the ASN.1 tree */
+#include <asn1json.h>     /* Serialize the ASN.1 tree as JSON */
 #include <asn1compiler.h> /* Compile the ASN.1 tree */
 #include <asn1fix_export.h>
 
@@ -50,6 +54,22 @@
 #endif
 
 static void usage(const char *av0); /* Print the Usage screen and exit */
+
+/* Input files named *.json are read as JSON (see -J), anything else as ASN.1 */
+static int
+has_json_extension(const char *name) {
+    size_t len = strlen(name);
+    const char *ext = name + len - 5;
+    int i;
+    static const char json[] = ".json";
+    if(len < 5) return 0;
+    for(i = 0; i < 5; i++) {
+        char ch = ext[i];
+        if(ch >= 'A' && ch <= 'Z') ch = (char)(ch - 'A' + 'a');
+        if(ch != json[i]) return 0;
+    }
+    return 1;
+}
 static int importStandardModules(asn1p_t *asn, const char *skeletons_dir);
 
 int
@@ -61,6 +81,7 @@ main(int ac, char **av) {
     enum asn1print_flags asn1_printer_flags = APF_NOFLAGS;
     int print_arg__print_out = 0;   /* Don't compile, just print parsed */
     int print_arg__fix_n_print = 0; /* Fix and print */
+    int print_arg__json = 0;        /* Print the tree as JSON (-J) */
     int warnings_as_errors = 0;     /* Treat warnings as errors */
     char *skeletons_dir = NULL;     /* Directory with supplementary stuff */
     char *destdir = NULL;           /* Destination for generated files */
@@ -75,7 +96,7 @@ main(int ac, char **av) {
     /*
      * Process command-line options.
      */
-    while((ch = getopt(ac, av, "D:d:EFf:g:hn:LPp:RS:vW:X")) != -1) switch(ch) {
+    while((ch = getopt(ac, av, "D:d:EFf:g:hJn:LPp:RS:vW:X")) != -1) switch(ch) {
         case 'D':
             if(optarg && *optarg) {
                 size_t optarg_len = strlen(optarg);
@@ -166,6 +187,10 @@ main(int ac, char **av) {
             break;
         case 'h':
             usage(av[0]);
+        case 'J':
+            print_arg__json = 1;
+            print_arg__print_out = 1; /* Implicit -E */
+            break;
         case 'n':
             if(strcmp(optarg, "o-gen-PER") == 0) {
                 asn1_compiler_flags &= ~A1C_GEN_PER;
@@ -253,6 +278,10 @@ main(int ac, char **av) {
     /*
      * Validate the options combination.
      */
+    if(print_arg__json && asn1_printer_flags) {
+        fprintf(stderr, "Error: -J cannot be combined with -print-... or -X\n");
+        exit(EX_USAGE);
+    }
     if(print_arg__print_out) {
         if((asn1_printer_flags & APF_PRINT_CONSTRAINTS)
            && !print_arg__fix_n_print) {
@@ -340,7 +369,11 @@ main(int ac, char **av) {
     for(i = 0; i < ac; i++) {
         asn1p_t *new_asn;
 
-        new_asn = asn1p_parse_file(av[i], asn1_parser_flags);
+        if(has_json_extension(av[i])) {
+            new_asn = asn1json_parse_file(av[i]);
+        } else {
+            new_asn = asn1p_parse_file(av[i], asn1_parser_flags);
+        }
         if(new_asn == NULL) {
             fprintf(stderr, "Cannot parse \"%s\"\n", av[i]);
             exit_code = EX_DATAERR;
@@ -368,7 +401,8 @@ main(int ac, char **av) {
      * Dump the parsed ASN.1 tree if -E specified and -F is NOT given.
      */
     if(print_arg__print_out && !print_arg__fix_n_print) {
-        if(asn1print(asn, asn1_printer_flags)) {
+        if(print_arg__json ? asn1json(asn, AJF_NOFLAGS, stdout)
+                           : asn1print(asn, asn1_printer_flags)) {
             exit_code = EX_SOFTWARE;
             goto cleanup;
         }
@@ -411,7 +445,8 @@ main(int ac, char **av) {
      * Dump the parsed ASN.1 tree if -E specified and -F is given.
      */
     if(print_arg__print_out && print_arg__fix_n_print) {
-        if(asn1print(asn, asn1_printer_flags)) {
+        if(print_arg__json ? asn1json(asn, AJF_NOFLAGS, stdout)
+                           : asn1print(asn, asn1_printer_flags)) {
             exit_code = EX_SOFTWARE;
             goto cleanup;
         }
@@ -554,6 +589,8 @@ usage(const char *av0) {
 "Options:\n"
 "  -E                    Run only the ASN.1 parser and print out the tree\n"
 "  -F                    During -E operation, also perform tree fixing\n"
+"  -J                    Print the parsed tree as JSON (implies -E; add -F to fix)\n"
+"                        Input files named *.json are read as such JSON\n"
 "\n"
 "  -P                    Concatenate and print the compiled text\n"
 "  -R                    Restrict output (tables only, no support code)\n"

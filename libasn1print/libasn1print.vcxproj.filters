@@ -15,11 +15,20 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="asn1jsonin.c">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="asn1json.c">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
     <ClCompile Include="asn1print.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="asn1json.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
     <ClInclude Include="asn1print.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
