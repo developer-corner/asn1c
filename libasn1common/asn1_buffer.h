@@ -30,7 +30,10 @@ void abuf_str(abuf *, const char *str);
 void abuf_buf(abuf *, const abuf *);
 void abuf_add_bytes(abuf *, const char *, size_t);
 int abuf_printf(abuf *, const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+#ifndef _WIN32
+    __attribute__((format(printf, 2, 3)))
+#endif
+  ;
 int abuf_vprintf(abuf *, const char *fmt, va_list);
 
 #endif	/* ASN1_BUFFER_H */

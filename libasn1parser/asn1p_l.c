@@ -101,6 +101,7 @@ typedef unsigned int flex_uint32_t;
 #endif /* ! C99 */
 
 /* Limits of integral types. */
+#ifndef _WIN32
 #ifndef INT8_MIN
 #define INT8_MIN               (-128)
 #endif
@@ -128,6 +129,7 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+#endif /* _WIN32 */
 
 #endif /* ! FLEXINT_H */
 

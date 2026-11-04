@@ -68,6 +68,7 @@ asn1_namespace_t *asn1_namespace_new_ND(const asn1_namespace_t *ns1,
  * Introduce and destroy namespace around the given code.
  * This aids memory management around dynamic namespaces.
  */
+#ifndef _WIN32
 #define WITH_MODULE_NAMESPACE(mod, ns_var, code)     \
     ({                                               \
         struct asn1_namespace_s *ns_var =           \
@@ -76,5 +77,19 @@ asn1_namespace_t *asn1_namespace_new_ND(const asn1_namespace_t *ns1,
         asn1_namespace_free(ns_var);                \
         ret;                                         \
     })
+#else
+
+/* static struct asn1_namespace_s* ns; */ /* added declaration */
+
+static intptr_t
+with_ns_free_(struct asn1_namespace_s* ns, intptr_t ret) {
+    asn1_namespace_free(ns);
+    return ret;
+}
+
+#define WITH_MODULE_NAMESPACE(mod, ns_var, code)          \
+    ((ns_var) = asn1_namespace_new_from_module((mod), 1), \
+     (__typeof__(code))with_ns_free_((ns_var), (intptr_t)(code)))
+#endif
 
 #endif	/* ASN1_NAMESPACE_H */

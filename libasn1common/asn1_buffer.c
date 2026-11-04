@@ -5,7 +5,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include "config.h"
+#ifdef _WIN32
+# include "win64/config.h"
+#else
+# include "config.h"
+#endif
 
 #include "asn1_buffer.h"
 

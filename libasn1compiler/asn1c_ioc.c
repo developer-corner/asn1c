@@ -71,6 +71,9 @@ asn1c_get_ioc_table(arg_t *arg) {
     const asn1p_ref_t *objset_ref = NULL;
     asn1c_ioc_table_and_objset_t safe_ioc_tao = {0, 0, 0};
     asn1c_ioc_table_and_objset_t failed_ioc_tao = { 0, 0, 1 };
+#ifdef _WIN32
+    struct asn1_namespace_s* expr_ns;
+#endif
 
     TQ_FOR(memb, &(expr->members), next) {
         const asn1p_constraint_t *cr_ct =
@@ -108,6 +111,10 @@ asn1c_get_ioc_table(arg_t *arg) {
 
 static int
 emit_ioc_value(arg_t *arg, struct asn1p_ioc_cell_s *cell) {
+
+#ifdef _WIN32
+    struct asn1_namespace_s* expr_ns;
+#endif
 
     if(cell->value && cell->value->meta_type == AMT_VALUE) {
         const char *prim_type = NULL;

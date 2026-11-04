@@ -94,7 +94,7 @@ asn1p_ref_add_component(asn1p_ref_t *ref, const char *name, enum asn1p_ref_lex_t
 	}
 
 	if(ref->comp_count == ref->comp_size) {
-		int newsize = ref->comp_size?(ref->comp_size<<2):4;
+		int newsize = (int)(ref->comp_size?(ref->comp_size<<2):4);
 		void *p = realloc(ref->components,
 			newsize * sizeof(ref->components[0]));
 		if(p) {

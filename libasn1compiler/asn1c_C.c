@@ -1211,6 +1211,9 @@ asn1c_lang_C_type_CHOICE_def(arg_t *arg) {
 int
 asn1c_lang_C_type_REFERENCE(arg_t *arg) {
 	asn1p_ref_t *ref;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
 	ref = arg->expr->reference;
 	if(ref->components[ref->comp_count-1].name[0] == '&') {
@@ -1416,7 +1419,10 @@ asn1c_lang_C_type_SIMPLE_TYPE(arg_t *arg) {
                     "asn_SPC_%s_specs_%d;\n",
                     c_name(arg).base_name, expr->_type_unique_index);
             } else {
-                asn1p_expr_t *terminal = WITH_MODULE_NAMESPACE(
+#ifdef _WIN32
+                struct asn1_namespace_s* expr_ns;
+#endif
+                asn1p_expr_t* terminal = WITH_MODULE_NAMESPACE(
                     expr->module, expr_ns,
                     asn1f_find_terminal_type_ex(arg->asn, expr_ns, expr));
                 OUT("extern const asn_%s_specifics_t ",
@@ -1611,6 +1617,9 @@ _add_tag2el_member(arg_t *arg, tag2el_t **tag2el, int *count, int el_no, fte_e f
 
 	assert(el_no >= 0);
 
+#ifdef _WIN32
+    struct asn1_namespace_s* expr_ns;
+#endif
     ret = WITH_MODULE_NAMESPACE(
         arg->expr->module, expr_ns,
         asn1f_fetch_outmost_tag(arg->asn, expr_ns, arg->expr->module, arg->expr,
@@ -1659,6 +1668,9 @@ _add_tag2el_member(arg_t *arg, tag2el_t **tag2el, int *count, int el_no, fte_e f
 	if(arg->expr->expr_type == A1TC_REFERENCE) {
 		arg_t tmp = *arg;
 		asn1p_expr_t *expr;
+#ifdef _WIN32
+    struct asn1_namespace_s* expr_ns;
+#endif
         expr = WITH_MODULE_NAMESPACE(
             tmp.expr->module, expr_ns,
             asn1f_lookup_symbol_ex(tmp.asn, expr_ns, tmp.expr,
@@ -1718,6 +1730,9 @@ emit_tags_vectors(arg_t *arg, asn1p_expr_t *expr, int *tags_count_r, int *all_ta
 	int all_tags_count = 0;
 	enum tvm_compat tv_mode = _TVM_SAME;
 	int i;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
 	/* Cleanup before proceeding. */
 	*tags_count_r = 0;
@@ -1801,6 +1816,9 @@ expr_elements_count(arg_t *arg, asn1p_expr_t *expr) {
 	asn1p_expr_t *topmost_parent;
 	asn1p_expr_t *v;
 	int elements = 0;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
     topmost_parent = WITH_MODULE_NAMESPACE(
         expr->module, expr_ns,
@@ -1915,13 +1933,14 @@ emit_single_member_OER_constraint_value(arg_t *arg, asn1cnst_range_t *range) {
         } else {
             positive = 0;
             /* X.969 08/2015 10.2(b) - no lower bound or negative lower bound */
+
             if(lb >= -128 && ub <= 127) {
                 width = 1;
             } else if(lb >= -32768 && ub <= 32767) {
                 width = 2;
-            } else if(lb >= -2147483648L && ub <= 2147483647L) {
+            } else if( (long long)lb >= -((long long)2147483648L) && ub <= 2147483647L) {
                 width = 4;
-            } else if(lb >= (-9223372036854775807LL-1)
+            } else if(lb >= ((long long)(-9223372036854775807LL-1))
                       && ub <= 9223372036854775807LL) {
                 width = 8;
             }
@@ -2742,6 +2761,9 @@ emit_member_table(arg_t *arg, asn1p_expr_t *expr, asn1c_ioc_table_and_objset_t *
 	struct asn1p_type_tag_s *outmost_tag;
 	int complex_contents;
 	const char *p;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
     if(WITH_MODULE_NAMESPACE(
            expr->module, expr_ns,
@@ -3451,6 +3473,9 @@ static int compar_cameo(const void *ap, const void *bp) {
 	const struct canonical_map_element *b = (const void *)bp;
 	struct asn1p_type_tag_s atag, btag;
 	arg_t *arg = cameo_arg;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
     if(WITH_MODULE_NAMESPACE(a->expr->module, expr_ns,
                              asn1f_fetch_outmost_tag(

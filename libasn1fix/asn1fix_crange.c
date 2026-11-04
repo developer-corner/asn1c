@@ -3,10 +3,10 @@
 #include "asn1fix_crange.h"
 
 #undef	FATAL
-#define	FATAL(fmt, args...)	do {			\
-		fprintf(stderr, "FATAL: ");		\
-		fprintf(stderr, fmt, ##args);		\
-		fprintf(stderr, "\n");			\
+#define	FATAL(fmt, ...)	do {			          \
+		fprintf(stderr, "FATAL: ");		          \
+		fprintf(stderr, fmt, ##__VA_ARGS__);		\
+		fprintf(stderr, "\n");			            \
 	} while(0)
 
 static void

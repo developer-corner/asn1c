@@ -175,6 +175,9 @@ asn1c_type_name(arg_t *arg, asn1p_expr_t *expr, enum tnfmt _format) {
 	asn1p_expr_t *terminal = 0;
 	int stdname = 0;
 	const char *typename;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
 	/* Rewind to the topmost parent expression */
 	if((top_parent = expr->parent_expr))
@@ -375,6 +378,9 @@ asn1c_type_fits_long(arg_t *arg, asn1p_expr_t *expr) {
 	asn1cnst_edge_t left;
 	asn1cnst_edge_t right;
 	asn1p_expr_t *v;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
 /*
  * Since we don't know the sizeof(long) on the possible target platform

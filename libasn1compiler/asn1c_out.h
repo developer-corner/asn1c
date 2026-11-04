@@ -82,16 +82,17 @@ int asn1c_compiled_output(arg_t *arg, const char *file, int lineno,
     } while(0)
 
 /* Output a piece of text into a default stream */
-#define OUT(fmt, args...) \
-    asn1c_compiled_output(arg, __FILE__, __LINE__, __func__, fmt, ##args)
-#define	OUT_NOINDENT(fmt, args...)	do {			\
+#undef OUT
+#define OUT(fmt, ...) \
+    asn1c_compiled_output(arg, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define	OUT_NOINDENT(fmt, ...)	do {			\
 	int _saved_indent = INDENT_LEVEL;			\
 	INDENT_LEVEL = 0;					\
-	OUT(fmt, ##args);					\
+	OUT(fmt, ##__VA_ARGS__);					\
 	INDENT_LEVEL = _saved_indent;				\
 } while(0)
-#define	OUT_DEBUG(fmt, args...) do {				\
-		if(arg->flags & A1C_DEBUG) OUT(fmt, ##args);	\
+#define	OUT_DEBUG(fmt, ...) do {				\
+		if(arg->flags & A1C_DEBUG) OUT(fmt, ##__VA_ARGS__);	\
 	} while(0)
 
 /* Generate #include line */

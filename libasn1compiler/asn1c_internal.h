@@ -65,14 +65,14 @@ typedef struct arg_s {
 /*
  * Logging.
  */
-#define	LOG(ll, fmt, args...)	do {			\
-		arg->logger_cb(ll, fmt, ##args);	\
+#define	LOG(ll, fmt, ...)	do {			\
+		arg->logger_cb(ll, fmt, ##__VA_ARGS__);	\
 	} while(0)
-#define	DEBUG(fmt, args...)	do {		\
+#define	DEBUG(fmt, ...)	do {		\
 		if(arg->flags & A1C_DEBUG)	\
-			LOG(-1, fmt, ##args);	\
+			LOG(-1, fmt, ##__VA_ARGS__);	\
 	} while(0)
-#define	WARNING(fmt, args...)	LOG(0, fmt, ##args);
-#define	FATAL(fmt, args...)	LOG(1, fmt, ##args);
+#define WARNING(fmt, ...) LOG(0, fmt, ##__VA_ARGS__);
+#define FATAL(fmt, ...) LOG(1, fmt, ##__VA_ARGS__);
 
 #endif	/* ASN1_COMPILER_INTERNAL_H */

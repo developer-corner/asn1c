@@ -318,7 +318,9 @@
  * Prefix parser debug with "PARSER: " for easier human eye scanning.
  */
 static int
+#ifndef _WIN32
 __attribute__((format(printf, 2, 3)))
+#endif
 prefixed_fprintf(FILE *f, const char *fmt, ...) {
     static int line_ended = 1;
     va_list ap;
@@ -5265,6 +5267,34 @@ _convert_bitstring2binary(char *str, int base) {
 	return val;
 }
 
+#define CASE_UPPER \
+    case 'A':      \
+    case 'B':      \
+    case 'C':      \
+    case 'D':      \
+    case 'E':      \
+    case 'F':      \
+    case 'G':      \
+    case 'H':      \
+    case 'I':      \
+    case 'J':      \
+    case 'K':      \
+    case 'L':      \
+    case 'M':      \
+    case 'N':      \
+    case 'O':      \
+    case 'P':      \
+    case 'Q':      \
+    case 'R':      \
+    case 'S':      \
+    case 'T':      \
+    case 'U':      \
+    case 'V':      \
+    case 'W':      \
+    case 'X':      \
+    case 'Y':      \
+    case 'Z'
+
 /*
  * For unnamed types (used in old X.208 compliant modules)
  * generate some sort of interim names, to not to force human being to fix
@@ -5297,7 +5327,7 @@ _fixup_anonymous_identifier(asn1p_expr_t *expr) {
 	/* Make a lowercase identifier from the type name */
 	for(p = expr->Identifier; *p; p++) {
 		switch(*p) {
-		case 'A' ... 'Z': *p += 32; break;
+		CASE_UPPER: *p += 32; break;
 		case ' ': *p = '_'; break;
 		case '-': *p = '_'; break;
 		}

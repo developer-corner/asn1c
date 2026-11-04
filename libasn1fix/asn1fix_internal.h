@@ -105,6 +105,9 @@ typedef struct arg_s {
 /*
  * Temporary substitute module for the purposes of evaluating expression.
  */
+
+#ifndef _WIN32
+
 #define WITH_MODULE(tmp_mod, code)                            \
     ({                                                        \
         void *_saved_mod = arg->mod;                          \
@@ -118,30 +121,66 @@ typedef struct arg_s {
         ret;                                                  \
     })
 
-#define LOG(code, fmt, args...)                                          \
-    do {                                                                 \
-        int _save_errno = errno;                                         \
-        if(code < 0) {                                                   \
-            if(arg->debug) {                                             \
-                arg->debug(code, "%s: " fmt " in %s (%s:%d)", __func__,  \
-                           ##args, arg->mod->source_file_name, __FILE__, \
-                           __LINE__);                                    \
-            }                                                            \
-        } else if(arg->eh) {                                             \
-            if(arg->debug) {                                             \
-                arg->eh(code, fmt " in %s (%s:%d)", ##args,              \
-                        arg->mod->source_file_name, __FILE__, __LINE__); \
-            } else {                                                     \
-                arg->eh(code, fmt " in %s", ##args,                      \
-                        arg->mod->source_file_name);                     \
-            }                                                            \
-            errno = _save_errno;                                         \
-        }                                                                \
+#else
+
+typedef struct {
+    void* mod;
+    asn1_namespace_t* ns;
+} with_module_frame_t;
+static with_module_frame_t with_module_stack_[64];
+static int with_module_depth_;
+
+static void
+with_module_enter_(arg_t* arg, void* tmp_mod) {
+    with_module_frame_t* f;
+    assert(with_module_depth_ < 64);
+    f = &with_module_stack_[with_module_depth_++];
+    f->mod = arg->mod;
+    f->ns = arg->ns;
+    arg->mod = tmp_mod;
+    arg->ns = asn1_namespace_new_from_module(tmp_mod, 1);
+}
+
+static intptr_t
+with_module_leave_(arg_t* arg, intptr_t ret) {
+    with_module_frame_t* f = &with_module_stack_[--with_module_depth_];
+    asn1_namespace_free(arg->ns);
+    arg->ns = f->ns;
+    arg->mod = f->mod;
+    return ret;
+}
+
+#define WITH_MODULE(tmp_mod, code)       \
+    (with_module_enter_(arg, (tmp_mod)), \
+     (__typeof__(code))with_module_leave_(arg, (intptr_t)(code)))
+
+#endif
+
+#define LOG(code, fmt, ...)                                                   \
+    do {                                                                      \
+        int _save_errno = errno;                                              \
+        if(code < 0) {                                                        \
+            if(arg->debug) {                                                  \
+                arg->debug(code, "%s: " fmt " in %s (%s:%d)", __func__,       \
+                           ##__VA_ARGS__, arg->mod->source_file_name,         \
+                           __FILE__,                                          \
+                           __LINE__);                                         \
+            }                                                                 \
+        } else if(arg->eh) {                                                  \
+            if(arg->debug) {                                                  \
+                arg->eh(code, fmt " in %s (%s:%d)", ##__VA_ARGS__,            \
+                        arg->mod->source_file_name, __FILE__, __LINE__);      \
+            } else {                                                          \
+                arg->eh(code, fmt " in %s", ##__VA_ARGS__,                    \
+                        arg->mod->source_file_name);                          \
+            }                                                                 \
+            errno = _save_errno;                                              \
+        }                                                                     \
     } while(0)
 
-#define	DEBUG(fmt, args...)	LOG(-1, fmt, ##args)
-#define	FATAL(fmt, args...)	LOG( 1, fmt, ##args)
-#define	WARNING(fmt, args...)	LOG( 0, fmt, ##args)
+#define DEBUG(fmt, ...) LOG(-1, fmt, ##__VA_ARGS__)
+#define FATAL(fmt, ...) LOG(1, fmt, ##__VA_ARGS__)
+#define WARNING(fmt, ...) LOG(0, fmt, ##__VA_ARGS__)
 
 
 /*

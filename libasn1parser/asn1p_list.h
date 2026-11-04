@@ -4,6 +4,11 @@
 #ifndef	ASN1_PARSER_LIST_H
 #define	ASN1_PARSER_LIST_H
 
+#ifdef _WIN32
+#undef typeof
+#define typeof __typeof__
+#endif
+
 #define	TQ_HEAD(type)					\
 	struct {					\
 		type *tq_head;				\
@@ -38,6 +43,7 @@
 		(var); (var) = TQ_NEXT((var), field))
 
 /* MSVC does not have typeof(), cannot prevent side effects! */
+/* MSVC 2022 and later has __typeof__, though */
 #define	TQ_ADD(head, xel, field) do {			\
 	typeof(xel) __el = (xel);			\
 	assert(TQ_NEXT((__el), field) == 0);		\
@@ -56,6 +62,9 @@
 /*
  * Remove the first element and return it.
  */
+
+#ifndef _WIN32
+
 #define	TQ_REMOVE(head, field)	({			\
 	typeof(TQ_FIRST((head))) __fel;			\
 	__fel = TQ_FIRST((head));			\
@@ -68,5 +77,24 @@
 	}						\
 	__fel; })
 
+#else
+
+static inline void*
+tq_remove_(void** firstp, void*** tailp, size_t next_off) {
+    void* fel = *firstp;
+    void** nextp = fel ? (void**)((char*)fel + next_off) : NULL;
+    if(fel == NULL || (*firstp = *nextp) == NULL)
+        *tailp = firstp;
+    else
+        *nextp = NULL;
+    return fel;
+}
+
+#define TQ_REMOVE(head, field)                              \
+    ((__typeof__(TQ_FIRST(head)))tq_remove_(                \
+        (void**)&TQ_FIRST(head), (void***)&(head)->tq_tail, \
+        offsetof(__typeof__(*TQ_FIRST(head)), field.tq_next)))
+
+#endif
 
 #endif	/* ASN1_PARSER_LIST_H */

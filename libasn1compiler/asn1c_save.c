@@ -704,6 +704,96 @@ real_copy(const char *src, const char *dst) {
 	return retval;
 }
 
+#ifdef _WIN32
+
+/* Returns 1 if both paths refer to the same file, 0 otherwise. */
+static int
+same_file(const char* a, const char* b) {
+    BY_HANDLE_FILE_INFORMATION ia, ib;
+    int same = 0;
+    HANDLE ha = CreateFileA(
+        a, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    HANDLE hb = CreateFileA(
+        b, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if(ha != INVALID_HANDLE_VALUE && hb != INVALID_HANDLE_VALUE
+       && GetFileInformationByHandle(ha, &ia)
+       && GetFileInformationByHandle(hb, &ib)) {
+        same = ia.dwVolumeSerialNumber == ib.dwVolumeSerialNumber
+               && ia.nFileIndexHigh == ib.nFileIndexHigh
+               && ia.nFileIndexLow == ib.nFileIndexLow;
+    }
+    if(ha != INVALID_HANDLE_VALUE) CloseHandle(ha);
+    if(hb != INVALID_HANDLE_VALUE) CloseHandle(hb);
+    return same;
+}
+#else
+static int
+same_file(const char* a, const char* b) {
+    struct stat sb1, sb2;
+    return stat(a, &sb1) == 0 && stat(b, &sb2) == 0 && sb1.st_dev == sb2.st_dev
+           && sb1.st_ino == sb2.st_ino;
+}
+#endif
+
+static int
+asn1c_copy_over(arg_t* arg, const char* destdir, const char* path,
+                const char* msg) {
+#ifdef _WIN32
+    const int use_real_copy = 1;
+    (void)arg;
+#else
+    const int use_real_copy = !(arg->flags & A1C_LINK_SKELETONS);
+#endif
+    const char* fname = a1c_basename(path, destdir);
+    int failed;
+
+    if(!fname) {
+        failed = 1;
+    } else if(use_real_copy) {
+        failed = real_copy(path, fname) != 0;
+    } else {
+#ifdef _WIN32
+        failed = 1; /* never reached: no symlinks on Windows */
+        errno = ENOSYS;
+#else
+        failed = symlink(path, fname) != 0;
+#endif
+    }
+
+    if(failed) {
+        if(errno == EEXIST) {
+            if(same_file(path, fname)) {
+                /* Nothing to do. */
+                safe_fprintf(stderr, "File %s is already here as %s\n", path,
+                             fname);
+            } else {
+                safe_fprintf(stderr, "Retaining local %s (%s suggested)\n",
+                             fname, path);
+            }
+            return 1;
+        } else if(errno == ENOENT) {
+            /* Ignore this */
+            return 0;
+        } else {
+            safe_fprintf(stderr, "%s %s -> %s failed: %s\n",
+                         use_real_copy ? "Copy" : "Symlink", path, fname,
+                         strerror(errno));
+            return -1;
+        }
+    }
+
+    {
+        const int has_msg = msg && *msg;
+        safe_fprintf(stderr, "%s %s\t-> %s%s%s\n",
+                     use_real_copy ? "Copied" : "Symlinked", path, fname,
+                     has_msg ? " " : "", has_msg ? msg : "");
+    }
+    return 1;
+}
+
+#if 0
 static int
 asn1c_copy_over(arg_t *arg, const char *destdir, const char *path,
                 const char *msg) {
@@ -754,7 +844,7 @@ asn1c_copy_over(arg_t *arg, const char *destdir, const char *path,
 
     return 1;
 }
-
+#endif
 
 static int
 generate_pdu_collection_file(arg_t *arg, const char *destdir) {

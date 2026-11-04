@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="asn1c.vcxproj" Id="bba19a43-4611-48c5-97a8-c7d498f3526e" />
+  <Project Path="libasn1common/libasn1common.vcxproj" Id="df5df12f-6279-4ad5-8550-d5a4594bacde" />
+  <Project Path="libasn1compiler/libasn1compiler.vcxproj" Id="6a6e967b-c648-4c73-beab-a87982ea8c7d" />
+  <Project Path="libasn1fix/libasn1fix.vcxproj" Id="9210555d-5e10-4e97-9806-7b36cb0f28bf" />
+  <Project Path="libasn1parser/libasn1parser.vcxproj" Id="a96afed6-c70c-4671-8ee1-a12153664901" />
+  <Project Path="libasn1print/libasn1print.vcxproj" Id="eb01d326-a50f-4d38-b829-609986bbcab1" />
+  <Project Path="PKIX/PKIX.vcxproj" Id="699b5950-5ee9-4dc0-b2ef-24251247dd23" />
+</Solution>

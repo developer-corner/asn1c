@@ -20,12 +20,12 @@ typedef enum {
 } print_method_e;
 static print_method_e print_method_;
 
-#define	INDENT(fmt, args...)    do {        \
+#define	INDENT(fmt, ...)    do {        \
         if(!(flags & APF_NOINDENT)) {       \
             int tmp_i = level;              \
             while(tmp_i--) safe_printf("    ");  \
         }                                   \
-        safe_printf(fmt, ##args);                \
+        safe_printf(fmt, ##__VA_ARGS__);                \
     } while(0)
 
 static int asn1print_module(asn1p_t *asn, asn1p_module_t *mod, enum asn1print_flags flags);
@@ -665,7 +665,18 @@ asn1print_expr(asn1p_t *asn, asn1p_module_t *mod, asn1p_expr_t *tc, enum asn1pri
 		safe_printf(" CLASS");
 		WANT_SPACE();
 		break;
+#ifndef _WIN32
 	case A1TC_CLASSFIELD_TFS ... A1TC_CLASSFIELD_OSFS:
+#else
+    case A1TC_CLASSFIELD_TFS:
+    case A1TC_CLASSFIELD_FTVFS:
+    case A1TC_CLASSFIELD_VTVFS:
+    case A1TC_CLASSFIELD_FTVSFS:
+    case A1TC_CLASSFIELD_VTVSFS:
+    case A1TC_CLASSFIELD_OFS:
+    case A1TC_CLASSFIELD_OSFS:
+#endif
+
 		/* Nothing to print here */
 		break;
 	case ASN_CONSTR_SET_OF:
@@ -813,6 +824,9 @@ asn1print_expr(asn1p_t *asn, asn1p_module_t *mod, asn1p_expr_t *tc, enum asn1pri
 	if(flags & APF_PRINT_CONSTRAINTS
 	&& tc->expr_type != A1TC_EXTENSIBLE) {
 		asn1p_expr_t *top_parent;
+#ifdef _WIN32
+    struct asn1_namespace_s* tc_ns;
+#endif
 
 		if(tc->combined_constraints) {
 			safe_printf("\n-- Combined constraints: ");
@@ -912,6 +926,9 @@ asn1print_expr_dtd(asn1p_t *asn, asn1p_module_t *mod, asn1p_expr_t *expr, enum a
 	asn1p_expr_t *se;
 	int expr_unordered = 0;
 	int dont_involve_children = 0;
+#ifdef _WIN32
+  struct asn1_namespace_s* expr_ns;
+#endif
 
 	switch(expr->meta_type) {
 	case AMT_TYPE:
