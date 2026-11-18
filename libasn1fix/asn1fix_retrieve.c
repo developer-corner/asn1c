@@ -50,24 +50,33 @@ asn1f_lookup_in_imports(arg_t *arg, asn1p_module_t *mod, const char *name) {
 
 	/*
 	 * Search in which exactly module this name is defined.
+	 * First pass: the IMPORTS clause that explicitly lists the name.
 	 */
 	TQ_FOR(xp, &(mod->imports), xp_next) {
-        asn1p_module_t *fromModule =
-            asn1f_lookup_module(arg, xp->fromModuleName, NULL);
         asn1p_expr_t *tc = (asn1p_expr_t *)0;
 
         TQ_FOR(tc, &(xp->xp_members), next) {
             if(strcmp(name, tc->Identifier) == 0)
 				break;
-
-			if(!fromModule)
-				continue;
-
-            asn1p_expr_t *v =
-                asn1f_lookup_in_module(fromModule, name);
-            if(v) break;
 		}
 		if(tc) break;
+	}
+
+	/*
+	 * Second pass (lenient fallback, only if no clause lists the name):
+	 * the first IMPORTS clause whose source module defines the name.
+	 */
+	if(xp == NULL) {
+		TQ_FOR(xp, &(mod->imports), xp_next) {
+			asn1p_module_t *fromModule;
+
+			if(TQ_FIRST(&(xp->xp_members)) == NULL)
+				continue;
+
+			fromModule = asn1f_lookup_module(arg, xp->fromModuleName, NULL);
+			if(fromModule && asn1f_lookup_in_module(fromModule, name))
+				break;
+		}
 	}
 	if(xp == NULL) {
 		errno = ESRCH;

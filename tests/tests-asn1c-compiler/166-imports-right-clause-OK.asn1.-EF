@@ -1,0 +1,31 @@
+ModuleImportsRight1 { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 166 1 }
+DEFINITIONS ::=
+BEGIN
+
+Foo ::= INTEGER
+
+Bar ::= INTEGER
+
+END
+
+ModuleImportsRight2 { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 166 2 }
+DEFINITIONS ::=
+BEGIN
+
+Bar ::= BOOLEAN
+
+END
+
+ModuleImportsRight3 { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 166 3 }
+DEFINITIONS ::=
+BEGIN
+
+X ::= SEQUENCE {
+    a	 Foo,
+    b	 Bar
+}
+
+END

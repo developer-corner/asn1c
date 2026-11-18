@@ -147,6 +147,12 @@ _asn1f_copy_value(arg_t *arg, asn1p_expr_t *to, asn1p_expr_t *from) {
 
 	v = asn1p_value_clone(from->value);
 	if(v) {
+		/*
+		 * Information object text must later be parsed in the namespace
+		 * of the module that defines it.
+		 */
+		if(v->type == ATV_UNPARSED && !v->module)
+			v->module = from->module;
 		asn1p_value_free(to->value);
 		to->value = v;
 		DEBUG("Copied value %s from \"%s\" on line %d "

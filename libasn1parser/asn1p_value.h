@@ -57,6 +57,14 @@ typedef struct asn1p_value_s {
 			struct asn1p_value_s *value;
 		} choice_identifier;
 	} value;
+
+	/*
+	 * For ATV_UNPARSED values (information object text) that were copied
+	 * from another definition: the module that defines the text. Names in
+	 * the text must be resolved in this module, not where the copy is used.
+	 * NULL means "the module of the expression holding the value".
+	 */
+	struct asn1p_module_s *module;
 } asn1p_value_t;
 
 /*

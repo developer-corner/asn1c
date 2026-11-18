@@ -8,7 +8,164 @@ static int _asn1f_parse_class_object_data(arg_t *, asn1p_expr_t *eclass,
 		const uint8_t *buf, const uint8_t *bend,
 		int optional_mode, const uint8_t **newpos, int counter);
 static int _asn1f_assign_cell_value(arg_t *arg, struct asn1p_ioc_cell_s *cell, const uint8_t *buf, const uint8_t *bend, int counter);
-static asn1p_wsyntx_chunk_t *asn1f_next_literal_chunk(asn1p_wsyntx_t *syntax, asn1p_wsyntx_chunk_t *chunk, const uint8_t *buf);
+static asn1p_wsyntx_chunk_t *asn1f_next_literal_chunk(asn1p_wsyntx_t *syntax, asn1p_wsyntx_chunk_t *chunk, const uint8_t *buf, const uint8_t *bend);
+
+/*
+ * Characters that may continue an ASN.1 word (identifier, reference,
+ * keyword). A hyphen counts, so that "KEY" is not found in "CERT-KEY-USAGE".
+ */
+static int
+_asn1f_is_word_char(int c) {
+	return isalnum(c) || c == '-' || c == '_';
+}
+
+/*
+ * Check whether the literal token matches at position p as a whole word:
+ * a token that starts (ends) with a word character must not be preceded
+ * (followed) by another word character.
+ */
+static int
+_asn1f_literal_at(const uint8_t *start, const uint8_t *p, const uint8_t *bend,
+		const char *token) {
+	size_t token_len = strlen(token);
+
+	if(token_len == 0 || (size_t)(bend - p) < token_len
+	|| memcmp(p, token, token_len))
+		return 0;
+	if(_asn1f_is_word_char((unsigned char)token[0])
+	&& p > start && _asn1f_is_word_char(p[-1]))
+		return 0;
+	if(_asn1f_is_word_char((unsigned char)token[token_len - 1])
+	&& p + token_len < bend && _asn1f_is_word_char(p[token_len]))
+		return 0;
+	return 1;
+}
+
+/*
+ * Find the literal token in [buf, bend) as a whole word, outside of any
+ * nested {}, () or [] and outside of string literals.
+ * Returns NULL if not found.
+ */
+static const uint8_t *
+_asn1f_find_literal(const uint8_t *buf, const uint8_t *bend, const char *token) {
+	const uint8_t *p;
+	int depth = 0;
+
+	for(p = buf; p < bend; p++) {
+		switch(*p) {
+		case '"':	/* "..." with "" as an escaped quote */
+			for(p++; p < bend; p++) {
+				if(*p == '"') {
+					if(p + 1 < bend && p[1] == '"') { p++; continue; }
+					break;
+				}
+			}
+			if(p >= bend) return NULL;
+			continue;
+		case '\'':	/* '...'B or '...'H */
+			for(p++; p < bend && *p != '\''; p++);
+			if(p >= bend) return NULL;
+			continue;
+		case '{': case '(': case '[':
+			if(depth == 0 && _asn1f_literal_at(buf, p, bend, token))
+				return p;
+			depth++;
+			continue;
+		case '}': case ')': case ']':
+			if(depth > 0) {
+				depth--;
+				continue;
+			}
+			break;
+		}
+		if(depth == 0 && _asn1f_literal_at(buf, p, bend, token))
+			return p;
+	}
+
+	return NULL;
+}
+
+/*
+ * Return a copy of the object text in which comments ("-- ... --",
+ * "-- ... <EOL>" and nested slash-star comments) are replaced by spaces.
+ * String literals are kept. The length is unchanged.
+ */
+static uint8_t *
+_asn1f_strip_comments(const uint8_t *buf, size_t size) {
+	uint8_t *copy = malloc(size + 1);
+	size_t i;
+
+	if(!copy) return NULL;
+	memcpy(copy, buf, size);
+	copy[size] = '\0';
+
+	for(i = 0; i < size; i++) {
+		if(copy[i] == '"') {
+			for(i++; i < size; i++) {
+				if(copy[i] == '"') {
+					if(i + 1 < size && copy[i + 1] == '"') { i++; continue; }
+					break;
+				}
+			}
+		} else if(copy[i] == '\'') {
+			for(i++; i < size && copy[i] != '\''; i++);
+		} else if(copy[i] == '-' && i + 1 < size && copy[i + 1] == '-') {
+			copy[i] = copy[i + 1] = ' ';
+			for(i += 2; i < size; i++) {
+				if(copy[i] == '\r' || copy[i] == '\n') break;
+				if(copy[i] == '-' && i + 1 < size && copy[i + 1] == '-') {
+					copy[i] = copy[i + 1] = ' ';
+					i++;
+					break;
+				}
+				copy[i] = ' ';
+			}
+		} else if(copy[i] == '/' && i + 1 < size && copy[i + 1] == '*') {
+			int level = 0;
+			for(; i < size; i++) {
+				if(copy[i] == '/' && i + 1 < size && copy[i + 1] == '*') {
+					copy[i] = copy[i + 1] = ' ';
+					i++;
+					level++;
+				} else if(copy[i] == '*' && i + 1 < size && copy[i + 1] == '/') {
+					copy[i] = copy[i + 1] = ' ';
+					i++;
+					if(--level == 0) break;
+				} else if(copy[i] != '\r' && copy[i] != '\n') {
+					copy[i] = ' ';
+				}
+			}
+		}
+	}
+
+	return copy;
+}
+
+/*
+ * Parse the object text [buf, buf + size) (without the outer braces)
+ * after removing comments. If origin_mod is given (the text was copied
+ * from an object defined in that module), the names in the text are
+ * resolved in that module.
+ */
+static int
+_asn1f_parse_object_text(arg_t *arg, asn1p_expr_t *eclass,
+		struct asn1p_ioc_row_s *row, const uint8_t *buf, size_t size,
+		asn1p_module_t *origin_mod, int counter) {
+	uint8_t *text = _asn1f_strip_comments(buf, size);
+	int ret;
+
+	if(!text) return -1;
+	if(origin_mod && origin_mod != arg->mod) {
+		ret = WITH_MODULE(origin_mod,
+			_asn1f_parse_class_object_data(arg, eclass, row,
+				eclass->with_syntax, text, text + size, 0, 0, counter));
+	} else {
+		ret = _asn1f_parse_class_object_data(arg, eclass, row,
+			eclass->with_syntax, text, text + size, 0, 0, counter);
+	}
+	free(text);
+	return ret;
+}
 
 int
 asn1f_check_class_object(arg_t *arg) {
@@ -40,12 +197,9 @@ asn1f_check_class_object(arg_t *arg) {
 	row = asn1p_ioc_row_new(eclass);
 	assert(row);
 
-	ret = _asn1f_parse_class_object_data(arg, eclass, row,
-		eclass->with_syntax,
+	ret = _asn1f_parse_object_text(arg, eclass, row,
 		expr->value->value.string.buf + 1,
-		expr->value->value.string.buf
-			+ expr->value->value.string.size - 1,
-		0, 0, 0);
+		expr->value->value.string.size - 2, expr->value->module, 0);
 
 	asn1p_ioc_row_delete(row);
 
@@ -111,7 +265,7 @@ _asn1f_add_unique_row(arg_t *arg, asn1p_expr_t *expr, asn1p_ioc_row_t *row) {
  * into a given InformationObjectSet.
  */
 static int
-_asn1f_parse_object_cb(const uint8_t *buf, size_t size, void *keyp) {
+_asn1f_parse_object_cb(const uint8_t *buf, size_t size, asn1p_module_t *origin_mod, void *keyp) {
     struct parse_object_key *key = keyp;
     arg_t *arg = key->arg;
     asn1p_expr_t *expr = key->expr;
@@ -124,8 +278,7 @@ _asn1f_parse_object_cb(const uint8_t *buf, size_t size, void *keyp) {
 	row = asn1p_ioc_row_new(eclass);
 	assert(row);
 
-    ret = _asn1f_parse_class_object_data(arg, eclass, row, eclass->with_syntax,
-                                         buf, buf + size, 0, 0, key->sequence);
+    ret = _asn1f_parse_object_text(arg, eclass, row, buf, size, origin_mod, key->sequence);
     if(ret) {
         LOG(ret, "Cannot parse %s of CLASS %s found at line %d",
             expr->Identifier, eclass->Identifier, expr->_lineno);
@@ -142,8 +295,7 @@ _asn1f_parse_object_cb(const uint8_t *buf, size_t size, void *keyp) {
      */
 	row = asn1p_ioc_row_new(eclass);
 	assert(row);
-    ret = _asn1f_parse_class_object_data(arg, eclass, row, eclass->with_syntax,
-                                         buf, buf + size, 0, 0, key->sequence);
+    ret = _asn1f_parse_object_text(arg, eclass, row, buf, size, origin_mod, key->sequence);
     assert(ret == 0);
 
     if(_asn1f_add_unique_row(arg, expr, row) != 0)
@@ -155,6 +307,7 @@ _asn1f_parse_object_cb(const uint8_t *buf, size_t size, void *keyp) {
 static int
 _asn1f_foreach_unparsed_union(const asn1p_constraint_t *ct_union,
                               int (*process)(const uint8_t *buf, size_t size,
+                                             asn1p_module_t *origin_mod,
                                              void *key),
                               void *key) {
     assert(ct_union->type == ACT_CA_UNI);
@@ -164,7 +317,8 @@ _asn1f_foreach_unparsed_union(const asn1p_constraint_t *ct_union,
         if(ct2->type == ACT_EL_VALUE && ct2->value->type == ATV_UNPARSED) {
             if(process
                && process(ct2->value->value.string.buf + 1,
-                          ct2->value->value.string.size - 2, key)
+                          ct2->value->value.string.size - 2,
+                          ct2->value->module, key)
                       != 0) {
                 return -1;
             }
@@ -179,6 +333,7 @@ _asn1f_foreach_unparsed_union(const asn1p_constraint_t *ct_union,
 static int
 _asn1f_foreach_unparsed(arg_t *arg, const asn1p_constraint_t *ct,
                         int (*process)(const uint8_t *buf, size_t size,
+                                       asn1p_module_t *origin_mod,
                                        void *key),
                         void *keyp) {
     struct parse_object_key *key = keyp;
@@ -282,7 +437,8 @@ asn1f_parse_class_object(arg_t *arg) {
     switch(source) {
     case FROM_VALUE:
         if(_asn1f_parse_object_cb(expr->value->value.string.buf + 1,
-                           expr->value->value.string.size - 2, &key)
+                           expr->value->value.string.size - 2,
+                           expr->value->module, &key)
            != 0) {
             return -1;
         }
@@ -313,11 +469,11 @@ _asn1f_parse_class_object_data(arg_t *arg, asn1p_expr_t *eclass,
 		case WC_LITERAL: {
 			int token_len = strlen(chunk->content.token);
 			SKIPSPACES;
-			if(bend - buf < token_len
-			|| memcmp(buf, chunk->content.token, token_len)) {
+			if(!_asn1f_literal_at(buf, buf, bend, chunk->content.token)) {
 				if(!optional_mode) {
-					FATAL("While parsing object class value %s at line %d: Expected: \"%s\", found: \"%s\"",
-					arg->expr->Identifier, arg->expr->_lineno, chunk->content.token, buf);
+					FATAL("While parsing object class value %s at line %d: Expected: \"%s\", found: \"%.*s\"",
+					arg->expr->Identifier, arg->expr->_lineno, chunk->content.token,
+					(int)(bend - buf), buf);
 				}
 				if(newpos) *newpos = buf;
 				return -1;
@@ -333,11 +489,11 @@ _asn1f_parse_class_object_data(arg_t *arg, asn1p_expr_t *eclass,
 
 			SKIPSPACES;
 
-			next_literal = asn1f_next_literal_chunk(syntax, chunk, buf);
+			next_literal = asn1f_next_literal_chunk(syntax, chunk, buf, bend);
 			if(!next_literal) {
-				p += (bend - p);
+				p = bend;
 			} else {
-				p = (uint8_t *)strstr((const char *)buf, (const char *)next_literal->content.token);
+				p = _asn1f_find_literal(buf, bend, next_literal->content.token);
 				if(!p) {
 					if (!optional_mode)
 						FATAL("Next literal \"%s\" not found !", next_literal->content.token);
@@ -467,7 +623,13 @@ _asn1f_assign_cell_value(arg_t *arg, struct asn1p_ioc_cell_s *cell,
 		assert(expr);
 
         expr->parent_expr = NULL;
-        asn1p_expr_set_source(expr, arg->expr->module, arg->expr->_lineno);
+        /*
+         * arg->mod is the module whose namespace resolves this object text
+         * (the module that defines the object, see
+         * _asn1f_parse_object_text()); later lookups of references in the
+         * parsed setting must happen there as well.
+         */
+        asn1p_expr_set_source(expr, arg->mod, arg->expr->_lineno);
         expr->_type_unique_index = counter;
         DEBUG("Parsed identifier %s, mivr [%s], reference [%s] value [%s]",
               expr->Identifier, mivr, asn1p_ref_string(expr->reference),
@@ -485,6 +647,18 @@ _asn1f_assign_cell_value(arg_t *arg, struct asn1p_ioc_cell_s *cell,
 
 	if(expr->reference &&
 		!asn1f_lookup_symbol(arg, expr->rhs_pspecs, expr->reference)) {
+
+		if(!type_expr) {
+			/* A type field setting names a type that is not visible */
+			FATAL("Cannot find type %s for %s of %s at line %d (module %s)",
+				mivr, cell->field->Identifier,
+				arg->expr->Identifier, arg->expr->_lineno,
+				arg->mod->ModuleName);
+			if(expr->Identifier == mivr) mivr = NULL; /* freed with expr */
+			asn1p_expr_free(expr);
+			free(mivr);
+			return -1;
+		}
 
 		asn1p_ref_free(expr->reference);
 		new_ref = 0;
@@ -514,7 +688,7 @@ _asn1f_assign_cell_value(arg_t *arg, struct asn1p_ioc_cell_s *cell,
 }
 
 static asn1p_wsyntx_chunk_t *
-asn1f_next_literal_chunk(asn1p_wsyntx_t *syntax, asn1p_wsyntx_chunk_t *chunk, const uint8_t *buf)
+asn1f_next_literal_chunk(asn1p_wsyntx_t *syntax, asn1p_wsyntx_chunk_t *chunk, const uint8_t *buf, const uint8_t *bend)
 {
 	asn1p_wsyntx_chunk_t *next_chunk;
 
@@ -525,7 +699,7 @@ asn1f_next_literal_chunk(asn1p_wsyntx_t *syntax, asn1p_wsyntx_chunk_t *chunk, co
 				break;
 			next_chunk = TQ_NEXT(syntax->parent, next);
 		} else if(next_chunk->type == WC_LITERAL) {
-			if(strstr((const char *)buf, (char *)next_chunk->content.token))
+			if(_asn1f_find_literal(buf, bend, next_chunk->content.token))
 				break;
 			if(!syntax->parent)
 				break;

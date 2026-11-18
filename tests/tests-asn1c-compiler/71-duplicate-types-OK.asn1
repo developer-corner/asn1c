@@ -1,5 +1,7 @@
 
--- SE: Semantic error
+-- OK: Everything is fine
+-- The same type name in two different modules is allowed; the compiler
+-- prefixes such names with the module name (TM_NAMECLASH).
 
 -- iso.org.dod.internet.private.enterprise (1.3.6.1.4.1)
 -- .spelio.software.asn1c.test (9363.1.5.1)

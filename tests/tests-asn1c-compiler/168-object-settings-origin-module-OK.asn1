@@ -1,0 +1,41 @@
+
+-- OK: Everything is fine
+-- Settings of an imported object are resolved in the module that
+-- defines the object (HiddenParams is not visible in the last module).
+
+ModuleOriginClass { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 1 }
+	DEFINITIONS ::=
+BEGIN
+	ALG ::= CLASS { &id INTEGER UNIQUE, &Params OPTIONAL }
+		WITH SYNTAX { IDENTIFIER &id [PARAMS TYPE &Params] }
+END
+
+ModuleOriginTypes { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 2 }
+	DEFINITIONS ::=
+BEGIN
+	HiddenParams ::= SEQUENCE { a INTEGER }
+	hiddenVal INTEGER ::= 7
+END
+
+ModuleOriginObjects { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 3 }
+	DEFINITIONS ::=
+BEGIN
+	IMPORTS ALG FROM ModuleOriginClass
+		HiddenParams, hiddenVal FROM ModuleOriginTypes;
+	alg1 ALG ::= { IDENTIFIER hiddenVal PARAMS TYPE HiddenParams }
+END
+
+ModuleOriginUser { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 4 }
+	DEFINITIONS ::=
+BEGIN
+	IMPORTS ALG FROM ModuleOriginClass alg1 FROM ModuleOriginObjects;
+	UserAlgs ALG ::= { alg1 }
+	X ::= SEQUENCE {
+		id ALG.&id({UserAlgs}),
+		p  ALG.&Params({UserAlgs}{@id})
+	}
+END

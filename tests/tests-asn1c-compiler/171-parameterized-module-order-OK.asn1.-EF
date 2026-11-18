@@ -1,0 +1,70 @@
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 31 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 32 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 31 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 32 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type ALG expected for ALG at line 13 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 31 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 32 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 31 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 31 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 31 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 32 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 32 in 171-parameterized-module-order-OK.asn1
+WARNING: Parameterized type EXT expected for EXT at line 32 in 171-parameterized-module-order-OK.asn1
+ModuleParamOrderUser { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 171 1 }
+DEFINITIONS ::=
+BEGIN
+
+Algs ALG ::= {{ IDENTIFIER 1 PARAMS TYPE INTEGER }}
+
+MyExts EXT ::= {{ ID 1 TYPE BOOLEAN }}
+
+X ::= SEQUENCE {
+    a	 AlgId{ ALG,  { Algs}},
+    e	 Exts{ MyExts}
+}
+
+END
+
+ModuleParamOrderDefs { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 171 2 }
+DEFINITIONS ::=
+BEGIN
+
+ALG ::= CLASS {
+    &id	 INTEGER UNIQUE,
+    &Params	 ANY OPTIONAL
+} WITH SYNTAX { IDENTIFIER &id [PARAMS TYPE &Params] }
+
+
+AlgId{ALGORITHM-TYPE, ALGORITHM-TYPE:AlgorithmSet} ::= SEQUENCE {
+    algorithm	 ALGORITHM-TYPE.&id ({AlgorithmSet}),
+    parameters	 ALGORITHM-TYPE.&Params ({AlgorithmSet}{@algorithm}) OPTIONAL
+}
+
+EXT ::= CLASS {
+    &id	 INTEGER UNIQUE,
+    &Type	 ANY
+} WITH SYNTAX { ID &id TYPE &Type }
+
+
+Exts{EXT:ExtSet} ::= SEQUENCE SIZE(1..MAX) OF Ext{ { ExtSet}}
+
+Ext{EXT:ExtSet} ::= SEQUENCE {
+    id	 EXT.&id ({ExtSet}),
+    v	 EXT.&Type ({ExtSet}{@id})
+}
+
+END

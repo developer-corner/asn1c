@@ -99,7 +99,7 @@ bad2.json: JSON syntax error at line 2: unexpected end of input
 The document is an object with a `generator` string and a `modules` array.
 
 ```
-{ "generator": "asn1c-0.9.30", "modules": [ <module>, ... ] }
+{ "generator": "asn1c-0.10.0", "modules": [ <module>, ... ] }
 ```
 
 Standard modules loaded from the skeletons directory are not included.
@@ -149,7 +149,7 @@ END
 
 ```json
 {
-  "generator": "asn1c-0.9.30",
+  "generator": "asn1c-0.10.0",
   "modules": [
     {
       "name": "Demo",

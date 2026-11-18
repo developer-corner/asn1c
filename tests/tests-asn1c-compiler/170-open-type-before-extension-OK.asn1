@@ -1,0 +1,17 @@
+
+-- OK: Everything is fine
+-- An OPTIONAL open type followed by an extension marker is not a tag clash.
+
+ModuleOpenTypeExtension { iso org(3) dod(6) internet(1) private(4)
+	enterprise(1) spelio(9363) software(1) asn1c(5) test(1) 170 }
+	DEFINITIONS ::=
+BEGIN
+	ALG ::= CLASS { &id INTEGER UNIQUE, &Type OPTIONAL }
+		WITH SYNTAX { IDENTIFIER &id [TYPE &Type] }
+	Algs ALG ::= { { IDENTIFIER 1 TYPE INTEGER }, ... }
+	AlgId ::= SEQUENCE {
+		algorithm  ALG.&id({Algs}),
+		parameters ALG.&Type({Algs}{@algorithm}) OPTIONAL,
+		...
+	}
+END

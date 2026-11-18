@@ -214,6 +214,19 @@ asn1p_expr_clone_impl(asn1p_expr_t *expr, int skip_extensions, asn1p_expr_t *(*r
 	CLCLONE(with_syntax, asn1p_wsyntx_clone);
 
 	/*
+	 * Actual parameters of an instantiation (e.g. {T} in "Inner{T}").
+	 * Clone them with the same resolver, so that dummy parameters are
+	 * replaced inside nested instantiations too.
+	 */
+	if(expr->rhs_pspecs) {
+		clone->rhs_pspecs = asn1p_expr_clone_impl(expr->rhs_pspecs, 0, r, rarg);
+		if(clone->rhs_pspecs == NULL) {
+			asn1p_expr_free(clone);
+			return NULL;
+		}
+	}
+
+	/*
 	 * Copy all the children of this expr.
 	 */
 	TQ_FOR(tcmemb, &(expr->members), next) {
@@ -285,6 +298,20 @@ value_resolver(asn1p_value_t *value, void *rarg) {
 			return NULL;
 		}
 		cval = asn1p_value_fromconstr(target->constraints, 1);
+	} else if(target->meta_type == AMT_TYPEREF && target->reference) {
+		/*
+		 * An actual parameter written as a plain reference, e.g. the
+		 * object set in "Extensions{CertExtensions}", is parsed as a type
+		 * reference. Used in a value (set) position, it is a reference
+		 * to that object (set), resolved in the module of the argument.
+		 */
+		asn1p_ref_t *nref = asn1p_ref_clone(target->reference);
+		if(nref && !nref->module) nref->module = target->module;
+		cval = nref ? asn1p_value_fromref(nref, 0) : NULL;
+		if(!cval) {
+			asn1p_ref_free(nref);
+			errno = ENOMEM;
+		}
 	} else {
 		errno = EPERM;
 		cval = NULL;

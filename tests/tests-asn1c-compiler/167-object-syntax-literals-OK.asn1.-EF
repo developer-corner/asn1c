@@ -1,0 +1,29 @@
+ModuleObjectSyntaxLiterals { iso org(3) dod(6) internet(1) private(4)
+	enterprise(1) spelio(9363) software(1) asn1c(5) test(1) 167 }
+DEFINITIONS ::=
+BEGIN
+
+FOO ::= CLASS {
+    &id	 OBJECT IDENTIFIER UNIQUE,
+    &Type	 ANY,
+    &k	 INTEGER OPTIONAL,
+    &u	 INTEGER OPTIONAL
+} WITH SYNTAX { TYPE &Type [KEY &k] [CERT-KEY-USAGE &u] ID &id }
+
+
+foo1 FOO ::= { TYPE OBJECT IDENTIFIER -- an ID comment, KEY
+	               ID { 1 2 3 } }
+
+foo2 FOO ::= { TYPE INTEGER CERT-KEY-USAGE 5 ID { 1 2 4 } }
+
+foo3 FOO ::= { TYPE INTEGER KEY 7 ID { 1 2 5 } }
+
+Objs FOO ::= {{ TYPE OBJECT IDENTIFIER -- an ID comment, KEY
+	               ID { 1 2 3 } } | { TYPE INTEGER CERT-KEY-USAGE 5 ID { 1 2 4 } } | { TYPE INTEGER KEY 7 ID { 1 2 5 } }}
+
+T ::= SEQUENCE {
+    id	 FOO.&id ({Objs}),
+    v	 FOO.&Type ({Objs}{@id})
+}
+
+END

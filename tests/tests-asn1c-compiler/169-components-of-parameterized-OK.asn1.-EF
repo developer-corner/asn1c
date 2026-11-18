@@ -1,0 +1,19 @@
+ModuleComponentsOfParam { iso org(3) dod(6) internet(1) private(4)
+	enterprise(1) spelio(9363) software(1) asn1c(5) test(1) 169 }
+DEFINITIONS ::=
+BEGIN
+
+Inner{T} ::= SEQUENCE {
+    v	 T
+}
+
+Base{T} ::= SEQUENCE {
+    x	 Inner{ T}
+}
+
+Y ::= SEQUENCE {
+    x	 Inner{ INTEGER},
+    z	 INTEGER
+}
+
+END

@@ -1,3 +1,25 @@
+0.10.0:
+    FIXES IN libasn1fix / libasn1parser (semantic checks and tree fixing):
+      * Same identifier in two modules: modules are different if their names
+        or their OIDs differ (the OID comparison was inverted). The compiler
+        resolves such clashes by prefixing the module name.
+      * IMPORTS: a name is taken from the clause that lists it, not from the
+        first clause whose module happens to define it.
+      * Information object (WITH SYNTAX) parsing: comments are ignored,
+        literals match whole words only (no "ID" inside "OBJECT IDENTIFIER",
+        no "KEY" inside "CERT-KEY-USAGE"), searches stay within the object.
+      * Settings of an imported information object are resolved in the
+        module that defines the object (fixes a NULL dereference crash).
+      * Actual parameters of nested instantiations are kept when cloning
+        (COMPONENTS OF, nested parameterized types).
+      * An OPTIONAL open type followed by "..." is no longer a tag clash.
+      * Module order no longer matters for parameterized types with dummy
+        class parameters (ALGORITHM-TYPE.&id) or with an object set passed
+        as a plain reference (Extensions{CertExtensions}).
+      * NULL as an actual type parameter no longer crashes; a cloned NULL
+        value keeps its type, so such specializations are reused.
+      * Test 71-duplicate-types is now an OK test; new tests 165..172.
+
 0.9.30:
     FEATURES:
       * Added JSON serialization of the parsed ASN.1 tree (-J, optionally with

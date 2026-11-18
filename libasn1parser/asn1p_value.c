@@ -237,7 +237,9 @@ asn1p_value_clone_with_resolver(asn1p_value_t *v,
 		switch(v->type) {
 		case ATV_NOVALUE:
 		case ATV_NULL:
-			return calloc(1, sizeof(*clone));
+			clone = calloc(1, sizeof(*clone));
+			if(clone) clone->type = v->type;	/* keep ATV_NULL */
+			return clone;
 		case ATV_REAL:
 			return asn1p_value_fromdouble(v->value.v_double);
 		case ATV_TYPE:
@@ -260,7 +262,10 @@ asn1p_value_clone_with_resolver(asn1p_value_t *v,
 		case ATV_UNPARSED:
 			clone = asn1p_value_frombuf((char *)v->value.string.buf,
 				v->value.string.size, 1);
-			if(clone) clone->type = ATV_UNPARSED;
+			if(clone) {
+				clone->type = ATV_UNPARSED;
+				clone->module = v->module;
+			}
 			return clone;
 		case ATV_BITVECTOR:
 			return asn1p_value_frombits(v->value.binary_vector.bits,

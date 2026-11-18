@@ -71,6 +71,7 @@ asn1f_parameterization_fork(arg_t *arg, asn1p_expr_t *expr, asn1p_expr_t *rhs_ps
 	pspec->rhs_pspecs = rpc;
 	pspec->my_clone = exc;
 	exc->spec_index = npspecs;
+	asn1p_expr_free(exc->rhs_pspecs);	/* replaced below */
 	exc->rhs_pspecs = asn1p_expr_clone_with_resolver(expr->rhs_pspecs ?
 					expr->rhs_pspecs : rhs_pspecs,
 					resolve_expr, &rarg);
@@ -79,6 +80,7 @@ asn1f_parameterization_fork(arg_t *arg, asn1p_expr_t *expr, asn1p_expr_t *rhs_ps
 
 	target = TQ_FIRST(&expr->members);
 	TQ_FOR(m, &exc->members, next) {
+		asn1p_expr_free(m->rhs_pspecs);	/* replaced below */
 		m->rhs_pspecs = asn1p_expr_clone_with_resolver(target->rhs_pspecs ?
 						target->rhs_pspecs : exc->rhs_pspecs,
 						resolve_expr, &rarg);
@@ -107,6 +109,68 @@ resolve_expr(asn1p_expr_t *expr_to_resolve, void *resolver_arg) {
 	DEBUG("Resolving %s (meta %d)",
 		expr_to_resolve->Identifier, expr_to_resolve->meta_type);
 
+	/*
+	 * A class field reference through a dummy class parameter, e.g.
+	 * "ALGORITHM-TYPE.&id" in
+	 *   AlgorithmIdentifier{ALGORITHM-TYPE, ALGORITHM-TYPE:Set} ::= ...
+	 * Replace the dummy by the actual class reference ("ALG.&id"), so
+	 * that the specialization no longer depends on the dummy name and
+	 * can be fixed in any order.
+	 */
+	if(expr_to_resolve->meta_type == AMT_TYPEREF
+	&& expr_to_resolve->reference
+	&& expr_to_resolve->reference->comp_count > 1
+	&& expr_to_resolve->reference->components[1].name[0] == '&') {
+		asn1p_ref_t *ref = expr_to_resolve->reference;
+		asn1p_ref_t *nref;
+		size_t i;
+
+		errno = 0;
+		expr = find_target_specialization_bystr(rarg,
+				ref->components[0].name);
+		if(!expr) {
+			if(errno != ESRCH) return NULL;
+			/* Not a dummy parameter: clone as usual */
+			errno = ESRCH;
+			return NULL;
+		}
+		if(expr->meta_type != AMT_TYPEREF || !expr->reference
+		|| expr->reference->comp_count != 1) {
+			FATAL("Parameterization of %s: actual parameter for %s "
+				"at line %d must be a class reference",
+				rarg->original_expr->Identifier,
+				ref->components[0].name, ref->_lineno);
+			errno = EPERM;
+			return NULL;
+		}
+
+		nref = asn1p_ref_clone(expr->reference);
+		if(!nref) return NULL;
+		if(!nref->module) nref->module = expr->module;
+		for(i = 1; i < ref->comp_count; i++) {
+			if(asn1p_ref_add_component(nref, ref->components[i].name,
+					ref->components[i].lex_type)) {
+				asn1p_ref_free(nref);
+				return NULL;
+			}
+		}
+
+		nex = asn1p_expr_new(expr_to_resolve->_lineno,
+				expr_to_resolve->module);
+		if(!nex) {
+			asn1p_ref_free(nref);
+			return NULL;
+		}
+		nex->meta_type = expr_to_resolve->meta_type;
+		nex->expr_type = expr_to_resolve->expr_type;
+		nex->reference = nref;
+		nex->Identifier = expr_to_resolve->Identifier
+			? strdup(expr_to_resolve->Identifier) : 0;
+		DEBUG("Class field reference %s replaced by %s",
+			asn1p_ref_string(ref), asn1p_ref_string(nref));
+		return nex;
+	}
+
 	if(expr_to_resolve->meta_type == AMT_TYPEREF) {
 		expr = find_target_specialization_byref(rarg,
 				expr_to_resolve->reference);
@@ -128,6 +192,27 @@ resolve_expr(asn1p_expr_t *expr_to_resolve, void *resolver_arg) {
 
 	DEBUG("Found target %s (%d/%x)",
 		expr->Identifier, expr->meta_type, expr->expr_type);
+
+	/*
+	 * The grammar cannot tell the type NULL from the value NULL in an
+	 * actual parameter list and always produces the value. Where a type is
+	 * expected (a type reference to a dummy parameter), use the built-in
+	 * type NULL instead.
+	 */
+	if(expr_to_resolve->meta_type == AMT_TYPEREF
+	&& expr->meta_type == AMT_VALUE
+	&& expr->value && expr->value->type == ATV_NULL) {
+		nex = asn1p_expr_clone(expr, 0);
+		asn1p_value_free(nex->value);
+		nex->value = NULL;
+		nex->meta_type = AMT_TYPE;
+		nex->expr_type = ASN_BASIC_NULL;
+		free(nex->Identifier);
+		nex->Identifier = expr_to_resolve->Identifier
+			? strdup(expr_to_resolve->Identifier) : 0;
+		return nex;
+	}
+
 	if(expr->meta_type == AMT_TYPE
 	|| expr->meta_type == AMT_VALUE
 	|| expr->meta_type == AMT_TYPEREF

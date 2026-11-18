@@ -1,0 +1,17 @@
+
+-- OK: Everything is fine
+-- Two modules with different OIDs may define the same identifier.
+
+ModuleSameName1 { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 165 1 }
+	DEFINITIONS ::=
+BEGIN
+	Foo ::= INTEGER
+END
+
+ModuleSameName2 { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 165 2 }
+	DEFINITIONS ::=
+BEGIN
+	Foo ::= BOOLEAN
+END

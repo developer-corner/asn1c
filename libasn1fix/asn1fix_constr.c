@@ -419,10 +419,18 @@ _asn1f_compare_tags(arg_t *arg, asn1p_expr_t *a, asn1p_expr_t *b) {
 		 * Simple case: fetched both tags.
 		 */
 
+		/*
+		 * An extension marker "..." has the pseudo tag class -1 and no
+		 * real tag. The IMAGINARY ANY tag (tag_value -1) of an open type
+		 * must not match it: "OpenType OPTIONAL, ..." is fine.
+		 */
+		int a_is_marker = (ta.tag_class == -1 && ta.tag_value != -1);
+		int b_is_marker = (tb.tag_class == -1 && tb.tag_value != -1);
 		if((ta.tag_value == tb.tag_value
 			&& ta.tag_class == tb.tag_class)
-		|| ta.tag_value == -1	/* Spread IMAGINARY ANY tag... */
-		|| tb.tag_value == -1	/* ...it is an evil virus, fear it! */
+		|| ((ta.tag_value == -1	/* Spread IMAGINARY ANY tag... */
+		  || tb.tag_value == -1)	/* ...it is an evil virus, fear it! */
+		  && !a_is_marker && !b_is_marker)
 		) {
 			char tagbuf[2][TAG2STRING_BUFFER_SIZE];
 			char *p = (a->expr_type == A1TC_EXTENSIBLE)

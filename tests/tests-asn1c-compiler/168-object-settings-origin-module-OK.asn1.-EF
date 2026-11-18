@@ -1,0 +1,48 @@
+ModuleOriginClass { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 1 }
+DEFINITIONS ::=
+BEGIN
+
+ALG ::= CLASS {
+    &id	 INTEGER UNIQUE,
+    &Params	 ANY OPTIONAL
+} WITH SYNTAX { IDENTIFIER &id [PARAMS TYPE &Params] }
+
+
+END
+
+ModuleOriginTypes { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 2 }
+DEFINITIONS ::=
+BEGIN
+
+HiddenParams ::= SEQUENCE {
+    a	 INTEGER
+}
+
+hiddenVal INTEGER ::= 7
+
+END
+
+ModuleOriginObjects { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 3 }
+DEFINITIONS ::=
+BEGIN
+
+alg1 ALG ::= { IDENTIFIER hiddenVal PARAMS TYPE HiddenParams }
+
+END
+
+ModuleOriginUser { iso org(3) dod(6) internet(1) private(4) enterprise(1)
+	spelio(9363) software(1) asn1c(5) test(1) 168 4 }
+DEFINITIONS ::=
+BEGIN
+
+UserAlgs ALG ::= {{ IDENTIFIER hiddenVal PARAMS TYPE HiddenParams }}
+
+X ::= SEQUENCE {
+    id	 ALG.&id ({UserAlgs}),
+    p	 ALG.&Params ({UserAlgs}{@id})
+}
+
+END

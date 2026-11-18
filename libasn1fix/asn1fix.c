@@ -513,10 +513,15 @@ asn1f_check_duplicate(arg_t *arg) {
 				  arg->expr->Identifier))
 				continue;
 
-			/* resolve clash of Identifier in different modules */
+			/*
+			 * Resolve clash of Identifier in different modules.
+			 * Two modules are different if their names differ, or if
+			 * both have an OID and the OIDs differ.
+			 * (asn1p_oid_compare() returns 0 for equal OIDs.)
+			 */
 			int oid_exist = (tmparg.expr->module->module_oid && arg->expr->module->module_oid);
-			if ((!oid_exist && strcmp(tmparg.expr->module->ModuleName, arg->expr->module->ModuleName)) ||
-				(oid_exist && !asn1p_oid_compare(tmparg.expr->module->module_oid, arg->expr->module->module_oid))) {
+			if (strcmp(tmparg.expr->module->ModuleName, arg->expr->module->ModuleName) ||
+				(oid_exist && asn1p_oid_compare(tmparg.expr->module->module_oid, arg->expr->module->module_oid) != 0)) {
 
 				tmparg.expr->_mark |= TM_NAMECLASH;
 				arg->expr->_mark |= TM_NAMECLASH;
