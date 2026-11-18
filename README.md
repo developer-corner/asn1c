@@ -14,6 +14,17 @@ The ASN.1 family of standards is large and complex, and no open source
 compiler supports it in its entirety.
 The asn1c is arguably the most evolved open source ASN.1 compiler.
 
+# Windows 64 port and JSON serializer / de-serializer
+
+This is a FORK of the great asn1c original. Native Windows 64 build support
+using MS Visual C/C++ 2026 (tested with CE) was added.
+
+Moreover, the ASN.1 compiler may now be used to parse ASN.1 input outputting
+JSON, and, a full roundtrip is implemented (read JSON ASN.1 parsed input back
+into the compiler framework).
+
+Please read the [ASN1_JSON.md](ASN1_JSON.md) file.
+
 # ASN.1 Transfer Syntaxes
 <details>
 <summary>ASN.1 encodings interoperability table</summary>
