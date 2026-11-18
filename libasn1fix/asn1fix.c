@@ -525,7 +525,13 @@ asn1f_check_duplicate(arg_t *arg) {
 
 				tmparg.expr->_mark |= TM_NAMECLASH;
 				arg->expr->_mark |= TM_NAMECLASH;
-				continue;
+				/*
+				 * Legal, the compiler adds the module name. But a name
+				 * that shadows a standard module's definition (e.g. a
+				 * local TYPE-IDENTIFIER) is suspicious: warn about it.
+				 */
+				if(critical)
+					continue;
 			}
 
 			diff_files = strcmp(arg->mod->source_file_name,
